@@ -34,10 +34,29 @@ export function formatAlertCreated(a: Alert): string {
   );
 }
 
-export function formatAlertList(alerts: Alert[]): string {
-  if (alerts.length === 0) {
-    return 'No tienes alertas. Crea una con:\n/add MAD PRG 2026-08-20 120';
+const NO_ALERTS = 'No tienes alertas. Pulsa ➕ Nueva alerta para crear una.';
+
+/** Cabecera de "Mis alertas" (el detalle va en los botones). */
+export function formatAlertSummary(alerts: Alert[]): string {
+  if (alerts.length === 0) return NO_ALERTS;
+  return `📋 Tienes ${alerts.length} alerta(s). Pulsa una para ver el detalle, pausarla, cambiar el precio o borrarla.`;
+}
+
+export function formatAlertDetail(a: Alert): string {
+  const lines = [`📌 Alerta #${a.id}${a.status === 'paused' ? ' (⏸️ pausada)' : ''}`, tripLabel(a), `📅 ${datesLabel(a)}`];
+  lines.push(`🎯 Objetivo: ${a.targetPrice} ${a.currency}`);
+  if (a.lastSeenPrice != null) {
+    const min = a.minSeenPrice != null && a.minSeenPrice < a.lastSeenPrice ? ` · mínimo visto ${a.minSeenPrice}` : '';
+    lines.push(`💶 Precio actual: ${a.lastSeenPrice} ${a.currency}${min}`);
+  } else {
+    lines.push('💶 Aún sin precio (se comprueba en breve)');
   }
+  if (a.lastDeal) lines.push(`🛫 Mejor vuelo: ${dealLine(a.lastDeal)}`);
+  return lines.join('\n');
+}
+
+export function formatAlertList(alerts: Alert[]): string {
+  if (alerts.length === 0) return NO_ALERTS;
   return alerts
     .map((a) => {
       const icon = a.status === 'paused' ? '⏸️' : '✅';

@@ -3,7 +3,7 @@ import { dirname } from 'node:path';
 import type { StorageProvider } from './StorageProvider.js';
 import type { Alert, AppState } from '../models/types.js';
 
-const emptyState = (): AppState => ({ alerts: [], users: {}, telegram: { offset: 0 } });
+const emptyState = (): AppState => ({ alerts: [], users: {}, sessions: {}, telegram: { offset: 0 } });
 
 /** Alertas guardadas por versiones anteriores (fecha unica `date`, sin rangos). */
 type StoredAlert = Partial<Alert> & { date?: string };
@@ -47,6 +47,7 @@ export class JsonStorage implements StorageProvider {
       return {
         alerts: (data.alerts ?? []).map(migrateAlert),
         users: data.users ?? {},
+        sessions: data.sessions ?? {},
         telegram: { offset: data.telegram?.offset ?? 0 },
       };
     } catch (err) {

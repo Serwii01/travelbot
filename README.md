@@ -14,9 +14,22 @@ Dos formas de ejecutarlo:
 
 ---
 
-## Comandos
+## Uso con botones
+
+Al pulsar **Start** aparece un menú fijo bajo la caja de texto:
+
+- **➕ Nueva alerta**: asistente paso a paso. Escribes la ciudad ("madrid", "londres"; se busca con el autocompletado gratuito de Travelpayouts), eliges solo ida o ida y vuelta, el tipo de fechas (un día, varios días o un mes) en un calendario con botones, escribes el precio máximo y eliges si solo directos. Cada paso tiene **◀ Atrás** y **✖️ Cancelar**.
+- **📋 Mis alertas**: un botón por alerta; dentro, precio actual, mínimo, mejor vuelo y botones para **Ver vuelo**, **Pausar/Reanudar**, **Cambiar precio** y **Borrar** (con confirmación).
+- **🔎 Comprobar precios**: comprueba ahora y manda el resumen.
+
+Los avisos de precio llevan **Ver vuelo**, **Pausar**, **Borrar** y **Detalle**. Las conversaciones a medias se guardan en el estado (sobreviven a reinicios) y se olvidan a las 24 h.
+
+## Comandos (siguen funcionando)
 
 ```
+/nueva               asistente con botones (igual que ➕ Nueva alerta; también /add sin argumentos)
+/alertas             mis alertas con botones (también /list)
+/cancel              cancelar el asistente o el cambio de precio
 /add ORIGEN DESTINO IDA [VUELTA] precioMax [directo]
     /add MAD PRG 2026-08-20 120                                     solo ida, fecha exacta
     /add MAD PRG 2026-08-15..2026-08-20 2026-08-22..2026-08-27 200  ida y vuelta flexibles
@@ -111,7 +124,7 @@ npm run build && npm start         # versión compilada, como en el VPS
 
 ```
 src/
-  bot/         parseo y manejo de comandos
+  bot/         router (mensajes y botones), asistente, teclados, comandos
   services/    Telegram, comprobación de precios, lógica de avisos, mensajes
   providers/   FlightProvider + Travelpayouts + Mock
   storage/     StorageProvider + JsonStorage (escritura atómica, migra datos antiguos)

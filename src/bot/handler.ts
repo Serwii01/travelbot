@@ -3,9 +3,17 @@ import { formatAlertCreated, formatAlertList } from '../services/MessageFormatte
 import { parseAddArgs, type ParsedCommand } from './commands.js';
 import { isCurrency, parsePositiveNumber } from '../utils/validation.js';
 
-const HELP = [
-  'Comandos disponibles:',
+export const HELP = [
+  'Usa el menú de abajo:',
+  '➕ Nueva alerta — te pregunto origen, destino, fechas y precio paso a paso',
+  '📋 Mis alertas — ver precios, pausar, cambiar el objetivo o borrar',
+  '🔎 Comprobar precios — miro ahora y te mando el resumen',
   '',
+  'Con varios días o un mes entero busco el día más barato.',
+  'Te aviso cuando el precio baja de tu objetivo o baja bastante.',
+  'Las alertas se borran solas cuando pasa la fecha de ida.',
+  '',
+  'Si prefieres comandos:',
   '/add ORIGEN DESTINO IDA [VUELTA] precioMax [directo]',
   '  Fechas: 2026-08-20 · 2026-08-15..2026-08-25 · 2026-08 (mes entero)',
   '  /add MAD PRG 2026-08-20 120',
@@ -18,15 +26,15 @@ const HELP = [
   '/pause ID · /resume ID  — pausar / reactivar',
   '/setcurrency EUR  — moneda de nuevas alertas',
   '/checknow  — comprobar precios ahora',
+  '/cancel  — cancelar lo que estés haciendo',
   '/help  — esta ayuda',
-  '',
-  'Con un rango o un mes busco el día más barato dentro de él.',
-  'Las alertas se borran solas cuando pasa la fecha de ida.',
 ].join('\n');
 
 const START = [
   '👋 ¡Hola! Soy tu bot de alertas de precios de vuelos.',
   'Vigilo rutas y te aviso cuando el precio baja o cae por debajo de tu objetivo.',
+  '',
+  'Pulsa ➕ Nueva alerta para empezar.',
   '',
   HELP,
 ].join('\n');

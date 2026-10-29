@@ -2,13 +2,37 @@ export interface TelegramChat {
   id: number;
 }
 export interface TelegramMessage {
+  message_id: number;
   text?: string;
   chat?: TelegramChat;
+}
+export interface TelegramCallbackQuery {
+  id: string;
+  data?: string;
+  message?: TelegramMessage;
 }
 export interface TelegramUpdate {
   update_id: number;
   message?: TelegramMessage;
   edited_message?: TelegramMessage;
+  callback_query?: TelegramCallbackQuery;
+}
+
+export type InlineButton = { text: string; callback_data: string } | { text: string; url: string };
+export type InlineKeyboard = InlineButton[][];
+
+/** Teclado fijo bajo la caja de texto (menu principal). */
+export interface ReplyKeyboard {
+  keyboard: { text: string }[][];
+  resize_keyboard?: boolean;
+  is_persistent?: boolean;
+}
+
+export interface SendOptions {
+  /** Botones bajo el mensaje. */
+  keyboard?: InlineKeyboard;
+  /** Menu fijo bajo la caja de texto. */
+  replyKeyboard?: ReplyKeyboard;
 }
 
 const MAX_MESSAGE = 4000; // Telegram admite 4096
@@ -35,12 +59,17 @@ export function splitMessage(text: string, max = MAX_MESSAGE): string[] {
   return chunks;
 }
 
-export interface SendOptions {
-  /** Boton bajo el mensaje que abre esta URL. */
-  button?: { text: string; url: string };
+class TelegramError extends Error {
+  constructor(
+    readonly method: string,
+    readonly status: number,
+    readonly description: string,
+  ) {
+    super(`${method} ${status}: ${description.slice(0, 200)}`);
+  }
 }
 
-/** Cliente minimo de la Bot API (solo lo que usamos: sendMessage + getUpdates). */
+/** Cliente minimo de la Bot API. */
 export class TelegramClient {
   private readonly base: string;
 
@@ -48,27 +77,68 @@ export class TelegramClient {
     this.base = `https://api.telegram.org/bot${token}`;
   }
 
-  /** Envia un mensaje; si supera el limite de Telegram lo trocea por bloques. */
-  async sendMessage(chatId: number, text: string, opts: SendOptions = {}): Promise<void> {
-    const chunks = splitMessage(text);
-    for (let i = 0; i < chunks.length; i++) {
-      await this.sendChunk(chatId, chunks[i], i === chunks.length - 1 ? opts : {});
-    }
-  }
-
-  private async sendChunk(chatId: number, text: string, opts: SendOptions): Promise<void> {
-    const body: Record<string, unknown> = { chat_id: chatId, text, disable_web_page_preview: true };
-    if (opts.button) body.reply_markup = { inline_keyboard: [[opts.button]] };
-
-    const res = await fetch(`${this.base}/sendMessage`, {
+  private async call<T>(method: string, body: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
+    const res = await fetch(`${this.base}/${method}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(15_000),
+      signal: signal ?? AbortSignal.timeout(15_000),
     });
-    if (!res.ok) {
-      throw new Error(`sendMessage ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const data = (await res.json().catch(() => ({}))) as { ok?: boolean; result?: T; description?: string };
+    if (!res.ok || !data.ok) throw new TelegramError(method, res.status, data.description ?? 'error desconocido');
+    return data.result as T;
+  }
+
+  /** Envia un mensaje (troceado si es largo) y devuelve el id del ultimo trozo. */
+  async sendMessage(chatId: number, text: string, opts: SendOptions = {}): Promise<number> {
+    const chunks = splitMessage(text);
+    let messageId = 0;
+    for (let i = 0; i < chunks.length; i++) {
+      const last = i === chunks.length - 1;
+      const body: Record<string, unknown> = { chat_id: chatId, text: chunks[i], disable_web_page_preview: true };
+      if (last && opts.keyboard) body.reply_markup = { inline_keyboard: opts.keyboard };
+      else if (last && opts.replyKeyboard) body.reply_markup = opts.replyKeyboard;
+      messageId = (await this.call<TelegramMessage>('sendMessage', body)).message_id;
     }
+    return messageId;
+  }
+
+  /** Sustituye texto y botones de un mensaje ya enviado. */
+  async editMessageText(chatId: number, messageId: number, text: string, keyboard?: InlineKeyboard): Promise<void> {
+    try {
+      await this.call('editMessageText', {
+        chat_id: chatId,
+        message_id: messageId,
+        text: splitMessage(text)[0],
+        disable_web_page_preview: true,
+        reply_markup: { inline_keyboard: keyboard ?? [] },
+      });
+    } catch (err) {
+      if (!isNotModified(err)) throw err;
+    }
+  }
+
+  /** Cambia solo los botones de un mensaje (sin botones si keyboard esta vacio). */
+  async editMessageReplyMarkup(chatId: number, messageId: number, keyboard: InlineKeyboard): Promise<void> {
+    try {
+      await this.call('editMessageReplyMarkup', {
+        chat_id: chatId,
+        message_id: messageId,
+        reply_markup: { inline_keyboard: keyboard },
+      });
+    } catch (err) {
+      if (!isNotModified(err)) throw err;
+    }
+  }
+
+  /** Quita el "cargando" del boton pulsado; con texto muestra un aviso breve. */
+  async answerCallbackQuery(id: string, text?: string): Promise<void> {
+    await this.call('answerCallbackQuery', text ? { callback_query_id: id, text } : { callback_query_id: id });
+  }
+
+  /** Lista de comandos que Telegram sugiere al escribir "/". */
+  async setMyCommands(commands: { command: string; description: string }[]): Promise<void> {
+    await this.call('setMyCommands', { commands });
   }
 
   /**
@@ -77,19 +147,21 @@ export class TelegramClient {
    * Telegram mantiene la conexion abierta hasta que llega un mensaje o vence el timeout.
    */
   async getUpdates(offset: number, timeout = 0, signal?: AbortSignal): Promise<TelegramUpdate[]> {
-    const url = new URL(`${this.base}/getUpdates`);
-    url.searchParams.set('timeout', String(timeout));
-    url.searchParams.set('offset', String(offset));
-    url.searchParams.set('allowed_updates', JSON.stringify(['message']));
-
     const deadline = AbortSignal.timeout((timeout + 15) * 1000);
-    const res = await fetch(url, { signal: signal ? AbortSignal.any([signal, deadline]) : deadline });
-    if (!res.ok) {
-      const hint =
-        res.status === 409 ? ' (otra instancia del bot está leyendo mensajes: ¿sigue activo el workflow de GitHub?)' : '';
-      throw new Error(`getUpdates ${res.status}${hint}: ${(await res.text()).slice(0, 200)}`);
+    try {
+      return await this.call<TelegramUpdate[]>(
+        'getUpdates',
+        { offset, timeout, allowed_updates: ['message', 'callback_query'] },
+        signal ? AbortSignal.any([signal, deadline]) : deadline,
+      );
+    } catch (err) {
+      if (err instanceof TelegramError && err.status === 409) {
+        throw new Error(`${err.message} (otra instancia del bot está leyendo mensajes: ¿sigue activo el workflow de GitHub?)`);
+      }
+      throw err;
     }
-    const data = (await res.json()) as { result?: TelegramUpdate[] };
-    return data.result ?? [];
   }
 }
+
+const isNotModified = (err: unknown): boolean =>
+  err instanceof TelegramError && err.description.includes('message is not modified');

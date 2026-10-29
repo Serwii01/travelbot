@@ -1,6 +1,7 @@
 import type { AppState, Alert } from '../models/types.js';
 import type { FlightProvider, FlightQuery } from '../providers/FlightProvider.js';
-import type { TelegramClient } from './TelegramClient.js';
+import type { InlineKeyboard, TelegramClient } from './TelegramClient.js';
+import { notificationKeyboard } from '../bot/keyboards.js';
 import { AlertService } from './AlertService.js';
 import { evaluateAlert } from './priceLogic.js';
 import { formatExpired, formatPriceAlert } from './MessageFormatter.js';
@@ -92,7 +93,7 @@ export class PriceChecker {
         const sent = await this.send(
           alert.chatId,
           formatPriceAlert(alert, deal, evaluation),
-          deal.link ? { text: '🔗 Ver vuelo', url: deal.link } : undefined,
+          notificationKeyboard(alert, deal.link),
         );
         if (sent) {
           alert.lastNotifiedPrice = deal.price;
@@ -102,9 +103,9 @@ export class PriceChecker {
     }
   }
 
-  private async send(chatId: number, text: string, button?: { text: string; url: string }): Promise<boolean> {
+  private async send(chatId: number, text: string, keyboard?: InlineKeyboard): Promise<boolean> {
     try {
-      await this.telegram.sendMessage(chatId, text, button ? { button } : {});
+      await this.telegram.sendMessage(chatId, text, keyboard ? { keyboard } : {});
       return true;
     } catch (err) {
       logger.warn(`Envio fallido a ${chatId}:`, (err as Error).message);

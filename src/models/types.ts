@@ -49,10 +49,62 @@ export interface UserPrefs {
   currency: string;
 }
 
+/** Ciudad o aeropuerto elegido en el asistente. */
+export interface Place {
+  /** Codigo IATA (ciudad o aeropuerto). */
+  code: string;
+  /** Nombre legible, p. ej. "Madrid, España". */
+  name: string;
+  isCity: boolean;
+}
+
+export type DateMode = 'day' | 'range' | 'month';
+
+export type WizardStep =
+  | 'origin'
+  | 'destination'
+  | 'trip'
+  | 'departMode'
+  | 'departPick'
+  | 'returnMode'
+  | 'returnPick'
+  | 'price'
+  | 'direct'
+  | 'confirm';
+
+/** Borrador de alerta que el asistente va rellenando paso a paso. */
+export interface WizardDraft {
+  step: WizardStep;
+  /** Pasos anteriores, para el boton "Atras". */
+  history: WizardStep[];
+  /** Ultimas opciones de ciudad mostradas (para recuperar el nombre al pulsar). */
+  options: Place[];
+  origin?: Place;
+  destination?: Place;
+  roundTrip?: boolean;
+  departMode?: DateMode;
+  departRange?: DateRange;
+  returnMode?: DateMode;
+  returnRange?: DateRange;
+  /** Primer dia elegido de un rango, a la espera del ultimo. */
+  rangeStart?: string;
+  /** Mes que se ve en el calendario (YYYY-MM). */
+  calendarMonth?: string;
+  targetPrice?: number;
+  directOnly?: boolean;
+}
+
+/** Conversacion en curso con un chat. */
+export type Session =
+  | { kind: 'wizard'; draft: WizardDraft; updatedAt: string }
+  | { kind: 'target'; alertId: string; messageId: number; updatedAt: string };
+
 /** Estado completo persistido. */
 export interface AppState {
   alerts: Alert[];
   users: Record<string, UserPrefs>;
+  /** Conversaciones a medias por chat (asistente, cambio de precio). */
+  sessions: Record<string, Session>;
   telegram: {
     /** Offset de getUpdates ya procesado. */
     offset: number;

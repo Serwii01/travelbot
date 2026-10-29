@@ -4,7 +4,9 @@ import { createProvider } from '../providers/index.js';
 import { TelegramClient } from '../services/TelegramClient.js';
 import { AlertService } from '../services/AlertService.js';
 import { PriceChecker } from '../services/PriceChecker.js';
-import { applyUpdates, sendCheckReports, sendReplies } from './processUpdates.js';
+import { PlacesService } from '../services/PlacesService.js';
+import { processUpdate, pruneSessions, type BotContext } from '../bot/router.js';
+import { sendCheckReports } from './processUpdates.js';
 import { logger } from '../utils/logger.js';
 import { sleep } from '../utils/sleep.js';
 
@@ -67,7 +69,32 @@ async function main(): Promise<void> {
   process.on('SIGTERM', () => void stop('SIGTERM'));
   process.on('SIGINT', () => void stop('SIGINT'));
 
-  const timer = setInterval(() => void runCheck(), config.checkIntervalMin * 60_000);
+  const ctx: BotContext = {
+    telegram,
+    state,
+    service,
+    places: new PlacesService().search,
+    requestCheck: (chatId) => {
+      pendingReports.add(chatId);
+      void runCheck();
+    },
+  };
+
+  const timer = setInterval(() => {
+    pruneSessions(state);
+    void runCheck();
+  }, config.checkIntervalMin * 60_000);
+
+  // Sugerencias al escribir "/" en Telegram.
+  await telegram
+    .setMyCommands([
+      { command: 'nueva', description: 'Crear una alerta paso a paso' },
+      { command: 'alertas', description: 'Ver y gestionar tus alertas' },
+      { command: 'checknow', description: 'Comprobar precios ahora' },
+      { command: 'cancel', description: 'Cancelar lo que estés haciendo' },
+      { command: 'help', description: 'Ayuda' },
+    ])
+    .catch((err) => logger.warn('setMyCommands falló:', (err as Error).message));
   logger.info(
     `Bot arrancado (proveedor ${config.provider}, comprobación cada ${config.checkIntervalMin} min, ` +
       `${state.alerts.length} alerta(s)).`,
@@ -92,15 +119,12 @@ async function main(): Promise<void> {
     }
     if (updates.length === 0) continue;
 
-    const outcome = applyUpdates(updates, service, state.telegram.offset);
-    state.telegram.offset = outcome.nextOffset;
-    await save();
-    await sendReplies(telegram, outcome.replies);
-
-    if (outcome.checkChats.size > 0) {
-      outcome.checkChats.forEach((c) => pendingReports.add(c));
-      void runCheck();
+    for (const update of updates) {
+      // El offset avanza aunque falle algo: un update roto no debe bloquear a los demas.
+      state.telegram.offset = update.update_id + 1;
+      await processUpdate(update, ctx);
     }
+    await save();
   }
 }
 
