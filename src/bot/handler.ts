@@ -1,18 +1,27 @@
-import { AlertService } from '../services/AlertService';
-import { formatAlertList } from '../services/MessageFormatter';
-import { parseAddArgs, type ParsedCommand } from './commands';
-import { isCurrency } from '../utils/validation';
+import { AlertService } from '../services/AlertService.js';
+import { formatAlertCreated, formatAlertList } from '../services/MessageFormatter.js';
+import { parseAddArgs, type ParsedCommand } from './commands.js';
+import { isCurrency, parsePositiveNumber } from '../utils/validation.js';
 
 const HELP = [
   'Comandos disponibles:',
-  '/add ORG DEST YYYY-MM-DD precioMax  — crear alerta (ej. /add MAD PRG 2026-08-20 120)',
-  '/list  — ver tus alertas',
+  '',
+  '/add ORIGEN DESTINO IDA [VUELTA] precioMax [directo]',
+  '  Fechas: 2026-08-20 · 2026-08-15..2026-08-25 · 2026-08 (mes entero)',
+  '  /add MAD PRG 2026-08-20 120',
+  '  /add MAD PRG 2026-08-15..2026-08-20 2026-08-22..2026-08-27 200',
+  '  /add MAD LON 2026-09 2026-09 150 directo',
+  '',
+  '/list  — ver tus alertas y el mejor precio actual',
+  '/target ID precio  — cambiar el precio objetivo',
   '/remove ID  — eliminar una alerta',
-  '/pause ID  — pausar una alerta',
-  '/resume ID  — reactivar una alerta',
-  '/setcurrency EUR  — moneda por defecto de nuevas alertas',
-  '/checknow  — forzar comprobación',
+  '/pause ID · /resume ID  — pausar / reactivar',
+  '/setcurrency EUR  — moneda de nuevas alertas',
+  '/checknow  — comprobar precios ahora',
   '/help  — esta ayuda',
+  '',
+  'Con un rango o un mes busco el día más barato dentro de él.',
+  'Las alertas se borran solas cuando pasa la fecha de ida.',
 ].join('\n');
 
 const START = [
@@ -22,75 +31,82 @@ const START = [
   HELP,
 ].join('\n');
 
+export interface CommandResult {
+  reply: string;
+  /** El usuario pidio /checknow: hay que lanzar una comprobacion y mandarle el resumen. */
+  wantsCheck?: boolean;
+}
+
 /**
  * Despacha un comando ya parseado y devuelve el texto de respuesta.
  * Funcion sincrona y sin red: la persistencia y el envio se hacen fuera.
  */
-export function handleCommand(
-  service: AlertService,
-  cmd: ParsedCommand,
-  chatId: number,
-): string {
+export function handleCommand(service: AlertService, cmd: ParsedCommand, chatId: number): CommandResult {
+  const id = cmd.args[0]?.replace(/^#/, '');
+
   switch (cmd.name) {
     case 'start':
-      return START;
+      return { reply: START };
 
     case 'help':
-      return HELP;
+      return { reply: HELP };
 
     case 'add': {
       const parsed = parseAddArgs(cmd.args);
-      if (!parsed.ok) return parsed.error;
+      if (!parsed.ok) return { reply: parsed.error };
       const currency = service.getUserCurrency(chatId);
       const alert = service.addAlert(chatId, { ...parsed.value, currency });
-      return [
-        `✅ Alerta creada (#${alert.id})`,
-        `${alert.origin} -> ${alert.destination}`,
-        `Fecha: ${alert.date}`,
-        `Objetivo: ${alert.targetPrice} ${alert.currency}`,
-      ].join('\n');
+      return { reply: `${formatAlertCreated(alert)}\n\nUsa /checknow para ver el precio ya.` };
     }
 
     case 'list':
-      return formatAlertList(service.listAlerts(chatId));
+      return { reply: formatAlertList(service.listAlerts(chatId)) };
+
+    case 'target': {
+      const price = parsePositiveNumber(cmd.args[1] ?? '');
+      if (!id || price == null) return { reply: 'Uso: /target ID precio' };
+      return {
+        reply: service.setTarget(chatId, id, Math.round(price))
+          ? `🎯 Objetivo de #${id}: ${Math.round(price)}.`
+          : `No encontré la alerta #${id}.`,
+      };
+    }
 
     case 'remove': {
-      const id = cmd.args[0];
-      if (!id) return 'Uso: /remove ID';
-      return service.removeAlert(chatId, id)
-        ? `🗑️ Alerta #${id} eliminada.`
-        : `No encontré la alerta #${id}.`;
+      if (!id) return { reply: 'Uso: /remove ID' };
+      return {
+        reply: service.removeAlert(chatId, id) ? `🗑️ Alerta #${id} eliminada.` : `No encontré la alerta #${id}.`,
+      };
     }
 
     case 'pause': {
-      const id = cmd.args[0];
-      if (!id) return 'Uso: /pause ID';
-      return service.setStatus(chatId, id, 'paused')
-        ? `⏸️ Alerta #${id} pausada.`
-        : `No encontré la alerta #${id}.`;
+      if (!id) return { reply: 'Uso: /pause ID' };
+      return {
+        reply: service.setStatus(chatId, id, 'paused') ? `⏸️ Alerta #${id} pausada.` : `No encontré la alerta #${id}.`,
+      };
     }
 
     case 'resume': {
-      const id = cmd.args[0];
-      if (!id) return 'Uso: /resume ID';
-      return service.setStatus(chatId, id, 'active')
-        ? `▶️ Alerta #${id} reactivada.`
-        : `No encontré la alerta #${id}.`;
+      if (!id) return { reply: 'Uso: /resume ID' };
+      return {
+        reply: service.setStatus(chatId, id, 'active')
+          ? `▶️ Alerta #${id} reactivada.`
+          : `No encontré la alerta #${id}.`,
+      };
     }
 
     case 'setcurrency': {
       const cur = cmd.args[0];
-      if (!cur || !isCurrency(cur)) return 'Uso: /setcurrency EUR (código de 3 letras)';
+      if (!cur || !isCurrency(cur)) return { reply: 'Uso: /setcurrency EUR (código de 3 letras)' };
       service.setUserCurrency(chatId, cur.toUpperCase());
-      return `💱 Moneda por defecto: ${cur.toUpperCase()} (se aplica a nuevas alertas).`;
+      return { reply: `💱 Moneda por defecto: ${cur.toUpperCase()} (se aplica a nuevas alertas).` };
     }
 
     case 'checknow':
-      // El job comprueba precios justo despues de procesar comandos en la misma
-      // ejecucion, asi que aqui basta con confirmar.
-      return '🔎 Comprobación en curso. Te avisaré si hay una bajada o precio bajo tu objetivo.';
+      if (service.listAlerts(chatId).length === 0) return { reply: formatAlertList([]) };
+      return { reply: '🔎 Comprobando precios… te mando el resumen en un momento.', wantsCheck: true };
 
     default:
-      return 'Comando no reconocido. Usa /help.';
+      return { reply: 'Comando no reconocido. Usa /help.' };
   }
 }

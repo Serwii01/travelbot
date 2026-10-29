@@ -1,4 +1,4 @@
-import type { AppState } from '../models/types';
+import type { AppState } from '../models/types.js';
 
 /**
  * Capa de almacenamiento abstracta.

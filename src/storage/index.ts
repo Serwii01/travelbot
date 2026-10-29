@@ -1,6 +1,6 @@
-import { config } from '../config';
-import type { StorageProvider } from './StorageProvider';
-import { JsonStorage } from './JsonStorage';
+import { config } from '../config.js';
+import type { StorageProvider } from './StorageProvider.js';
+import { JsonStorage } from './JsonStorage.js';
 
 /** Factory: cambia aqui para enchufar otro backend de almacenamiento. */
 export function createStorage(): StorageProvider {

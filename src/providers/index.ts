@@ -1,16 +1,21 @@
-import { config } from '../config';
-import type { FlightProvider } from './FlightProvider';
-import { AmadeusFlightProvider } from './AmadeusFlightProvider';
-import { MockFlightProvider } from './MockFlightProvider';
+import { config } from '../config.js';
+import type { FlightProvider } from './FlightProvider.js';
+import { TravelpayoutsFlightProvider } from './TravelpayoutsFlightProvider.js';
+import { MockFlightProvider } from './MockFlightProvider.js';
 
 /** Factory: selecciona el proveedor segun FLIGHT_PROVIDER. */
 export function createProvider(): FlightProvider {
-  if (config.provider === 'mock') return new MockFlightProvider();
-  return new AmadeusFlightProvider({
-    clientId: config.amadeus.clientId,
-    clientSecret: config.amadeus.clientSecret,
-    hostname: config.amadeus.hostname,
-  });
+  switch (config.provider) {
+    case 'mock':
+      return new MockFlightProvider();
+    case 'travelpayouts':
+    default:
+      return new TravelpayoutsFlightProvider({
+        token: config.travelpayouts.token,
+        marker: config.travelpayouts.marker || undefined,
+        minIntervalMs: config.requestDelayMs,
+      });
+  }
 }
 
 export type { FlightProvider };

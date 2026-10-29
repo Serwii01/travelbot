@@ -1,17 +1,19 @@
 {
   "name": "travelbot",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Telegram flight price alert bot. Cron-based, zero-cost on GitHub Actions.",
+  "description": "Telegram flight price alert bot. 24/7 on a small VPS or cron-based on GitHub Actions.",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=20.6"
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/jobs/bot.js",
+    "dev": "node --env-file=.env --import tsx src/jobs/bot.ts",
     "check": "tsx src/jobs/checkFlights.ts",
-    "start": "tsx src/jobs/checkFlights.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test src/bot/commands.test.ts src/services/priceLogic.test.ts"
+    "test": "node --import tsx --test src/bot/commands.test.ts src/services/priceLogic.test.ts src/utils/dates.test.ts src/providers/TravelpayoutsFlightProvider.test.ts src/services/TelegramClient.test.ts"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

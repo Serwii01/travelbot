@@ -1,0 +1,34 @@
+# Servicio systemd de travelbot. Lo instala deploy/install.sh (sustituye __APP_DIR__ y __NODE__).
+[Unit]
+Description=travelbot - alertas de precios de vuelos en Telegram
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=travelbot
+Group=travelbot
+WorkingDirectory=__APP_DIR__
+EnvironmentFile=/etc/travelbot.env
+Environment=NODE_ENV=production
+# Heap pequeno: el bot usa muy poca memoria.
+ExecStart=__NODE__ --max-old-space-size=96 __APP_DIR__/dist/jobs/bot.js
+Restart=always
+RestartSec=10
+# Si algo se desboca, se corta el bot y no el resto del VPS.
+MemoryMax=160M
+# Estado en /var/lib/travelbot (fuera del repo, asi git pull nunca choca con los datos).
+StateDirectory=travelbot
+# Endurecimiento: sin root, sistema de ficheros de solo lectura salvo su StateDirectory.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,9 +1,11 @@
 name: check-flights
 
+# Alternativa sin servidor. Desactivado por defecto porque el bot corre 24/7 en el VPS:
+# si ambos leen mensajes de Telegram a la vez, se los reparten y cada uno guarda su estado.
+# Para volver a usar GitHub Actions (y apagar el VPS), descomenta el schedule.
 on:
-  schedule:
-    # Cada 3 horas (UTC).
-    - cron: '0 */3 * * *'
+  # schedule:
+  #   - cron: '0 */3 * * *'
   workflow_dispatch: {}
 
 # Necesario para commitear data/db.json de vuelta al repo.
@@ -34,12 +36,13 @@ jobs:
       - name: Run flight check
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          AMADEUS_CLIENT_ID: ${{ secrets.AMADEUS_CLIENT_ID }}
-          AMADEUS_CLIENT_SECRET: ${{ secrets.AMADEUS_CLIENT_SECRET }}
-          # Opcionales (descomenta en variables del repo si los necesitas):
-          # AMADEUS_HOSTNAME: api.amadeus.com
-          # FLIGHT_PROVIDER: amadeus
+          # Proveedor por defecto: Travelpayouts (gratis).
+          TRAVELPAYOUTS_TOKEN: ${{ secrets.TRAVELPAYOUTS_TOKEN }}
+          # Opcionales (descomenta / define como variables del repo si los necesitas):
+          # FLIGHT_PROVIDER: travelpayouts   # o mock
           # DEFAULT_CURRENCY: EUR
+          # MIN_DROP_PCT: 3
+          # TRAVELPAYOUTS_MARKER: ${{ secrets.TRAVELPAYOUTS_MARKER }}
         run: npm run check
 
       - name: Commit updated data
