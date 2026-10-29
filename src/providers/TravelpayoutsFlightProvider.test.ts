@@ -28,10 +28,11 @@ test('rango: pide por mes y elige el mas barato dentro del rango', async () => {
     { price: 75, departure_at: '2026-08-18T10:00:00+02:00', transfers: 1, airline: 'FR', link: '/search/MAD1808PRG1' },
     { price: 90, departure_at: '2026-08-16T10:00:00+02:00', transfers: 0, link: '/y' },
   ]);
-  const p = new TravelpayoutsFlightProvider({ token: 't', marker: '123', fetchFn: fn });
+  const p = new TravelpayoutsFlightProvider({ token: 't', marker: '123', market: 'es', fetchFn: fn });
   const r = await p.search(query());
 
   assert.equal(calls.length, 1);
+  assert.equal(calls[0].searchParams.get('market'), 'es');
   assert.equal(calls[0].searchParams.get('departure_at'), '2026-08');
   assert.equal(calls[0].searchParams.get('one_way'), 'true');
   assert.equal(r?.price, 75);

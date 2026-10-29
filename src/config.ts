@@ -10,6 +10,8 @@ export interface Config {
     token: string;
     /** Marker de afiliado de Travelpayouts (opcional, para ganar comision). */
     marker: string;
+    /** Mercado de los precios cacheados (es, us, ru…). */
+    market: string;
   };
   provider: ProviderName;
   storage: 'json';
@@ -35,6 +37,7 @@ export const config: Config = {
   travelpayouts: {
     token: env.TRAVELPAYOUTS_TOKEN ?? '',
     marker: env.TRAVELPAYOUTS_MARKER ?? '',
+    market: (env.TRAVELPAYOUTS_MARKET || 'es').toLowerCase(),
   },
   provider: (env.FLIGHT_PROVIDER as ProviderName) || 'travelpayouts',
   storage: 'json',

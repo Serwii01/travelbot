@@ -66,6 +66,7 @@ export class PriceChecker {
 
       if (!result) {
         logger.info(`Sin ofertas para ${label}.`);
+        for (const alert of alerts) alert.noOffers = true;
         continue;
       }
 
@@ -78,6 +79,7 @@ export class PriceChecker {
 
         const evaluation = evaluateAlert(alert, deal.price, this.minDropPct);
         alert.lastSeenPrice = deal.price;
+        alert.noOffers = false;
         alert.minSeenPrice = Math.min(alert.minSeenPrice ?? Infinity, deal.price);
         alert.lastDeal = {
           price: deal.price,

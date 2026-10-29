@@ -36,6 +36,10 @@ export function formatAlertCreated(a: Alert): string {
 
 const NO_ALERTS = 'No tienes alertas. Pulsa ➕ Nueva alerta para crear una.';
 
+const NO_OFFERS =
+  '🔍 Sin precios recientes: nadie ha buscado esta ruta y fechas en Aviasales en los últimos días. ' +
+  'Sigo mirando; si quieres más opciones, prueba con un mes entero, otras fechas o un aeropuerto cercano.';
+
 /** Cabecera de "Mis alertas" (el detalle va en los botones). */
 export function formatAlertSummary(alerts: Alert[]): string {
   if (alerts.length === 0) return NO_ALERTS;
@@ -48,9 +52,10 @@ export function formatAlertDetail(a: Alert): string {
   if (a.lastSeenPrice != null) {
     const min = a.minSeenPrice != null && a.minSeenPrice < a.lastSeenPrice ? ` · mínimo visto ${a.minSeenPrice}` : '';
     lines.push(`💶 Precio actual: ${a.lastSeenPrice} ${a.currency}${min}`);
-  } else {
+  } else if (!a.noOffers) {
     lines.push('💶 Aún sin precio (se comprueba en breve)');
   }
+  if (a.noOffers) lines.push(NO_OFFERS);
   if (a.lastDeal) lines.push(`🛫 Mejor vuelo: ${dealLine(a.lastDeal)}`);
   return lines.join('\n');
 }
@@ -66,6 +71,7 @@ export function formatAlertList(alerts: Alert[]): string {
       if (a.minSeenPrice != null) prices.push(`mínimo ${a.minSeenPrice}`);
       lines.push(`   ${prices.join(' · ')}`);
       if (a.lastDeal) lines.push(`   Mejor: ${dealLine(a.lastDeal)}`);
+      if (a.noOffers) lines.push(`   ${NO_OFFERS}`);
       return lines.join('\n');
     })
     .join('\n\n');

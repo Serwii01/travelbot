@@ -13,6 +13,7 @@ export function createProvider(): FlightProvider {
       return new TravelpayoutsFlightProvider({
         token: config.travelpayouts.token,
         marker: config.travelpayouts.marker || undefined,
+        market: config.travelpayouts.market || undefined,
         minIntervalMs: config.requestDelayMs,
       });
   }

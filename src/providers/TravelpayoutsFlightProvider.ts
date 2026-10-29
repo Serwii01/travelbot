@@ -7,6 +7,11 @@ interface TravelpayoutsOptions {
   token: string;
   /** Marker de afiliado (opcional): se anade a los enlaces de compra. */
   marker?: string;
+  /**
+   * Mercado del que salen los precios cacheados (por defecto de la API: "ru").
+   * Las busquedas de usuarios espanoles estan en "es": con "ru" muchas rutas salen vacias.
+   */
+  market?: string;
   hostname?: string;
   /** Espera minima entre llamadas reales a la API (las respuestas cacheadas no esperan). */
   minIntervalMs?: number;
@@ -98,6 +103,7 @@ export class TravelpayoutsFlightProvider implements FlightProvider {
     url.searchParams.set('one_way', String(!query.returnRange));
     url.searchParams.set('direct', String(query.directOnly));
     url.searchParams.set('currency', query.currency.toLowerCase());
+    if (this.opts.market) url.searchParams.set('market', this.opts.market);
     url.searchParams.set('sorting', 'price');
     url.searchParams.set('unique', 'false');
     // Un mes devuelve muchos billetes; necesitamos margen para filtrar por rango.

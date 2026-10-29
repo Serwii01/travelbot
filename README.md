@@ -142,6 +142,7 @@ Para otro proveedor (precios en tiempo real, de pago) crea una clase que cumpla 
 | `TELEGRAM_BOT_TOKEN` | — | obligatoria |
 | `TRAVELPAYOUTS_TOKEN` | — | obligatoria con `travelpayouts` |
 | `TRAVELPAYOUTS_MARKER` | — | marker de afiliado para los enlaces |
+| `TRAVELPAYOUTS_MARKET` | `es` | mercado de los precios cacheados (con el de la API, `ru`, muchas rutas españolas salen vacías) |
 | `FLIGHT_PROVIDER` | `travelpayouts` | o `mock` |
 | `DATA_FILE` | `data/db.json` | en el VPS: `/var/lib/travelbot/db.json` |
 | `DEFAULT_CURRENCY` | `EUR` | |

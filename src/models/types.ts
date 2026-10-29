@@ -40,6 +40,8 @@ export interface Alert {
   minSeenPrice: number | null;
   /** Detalle del ultimo mejor billete visto. */
   lastDeal: Deal | null;
+  /** La ultima comprobacion no encontro ningun precio (ruta poco buscada). */
+  noOffers?: boolean;
   status: AlertStatus;
   createdAt: string;
   updatedAt: string;
